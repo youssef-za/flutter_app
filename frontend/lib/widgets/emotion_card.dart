@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/emotion_model.dart';
+import '../config/app_theme.dart';
 
+/// Minimalist emotion card widget
+/// Clean design with soft colors and rounded corners
 class EmotionCard extends StatelessWidget {
   final EmotionModel emotion;
   final VoidCallback? onTap;
@@ -13,121 +17,130 @@ class EmotionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final theme = Theme.of(context);
+    final emotionColor = AppTheme.getEmotionColor(emotion.emotionType);
+    final lightColor = AppTheme.getEmotionLightColor(emotion.emotionType);
+    final confidence = (emotion.confidence * 100).toStringAsFixed(0);
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              _buildEmotionIcon(emotion.emotionType),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      emotion.emotionType,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Confidence: ${(emotion.confidence * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatDateTime(emotion.timestamp),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _getEmotionColor(emotion.emotionType).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${(emotion.confidence * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    color: _getEmotionColor(emotion.emotionType),
-                    fontWeight: FontWeight.bold,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.dividerColor,
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                // Icon - Soft Circle
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: lightColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _getEmotionIcon(emotion.emotionType),
+                    color: emotionColor,
+                    size: 24,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 16),
+                
+                // Content - Clean
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        emotion.emotionType,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatDateTime(emotion.timestamp),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Confidence - Minimalist Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: lightColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$confidence%',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: emotionColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildEmotionIcon(String emotionType) {
-    IconData icon;
-    Color color;
-
+  IconData _getEmotionIcon(String emotionType) {
     switch (emotionType) {
       case 'HAPPY':
-        icon = Icons.sentiment_very_satisfied;
-        color = Colors.green;
-        break;
+        return Icons.sentiment_very_satisfied_rounded;
       case 'SAD':
-        icon = Icons.sentiment_very_dissatisfied;
-        color = Colors.blue;
-        break;
+        return Icons.sentiment_very_dissatisfied_rounded;
       case 'ANGRY':
-        icon = Icons.sentiment_very_dissatisfied;
-        color = Colors.red;
-        break;
+        return Icons.sentiment_very_dissatisfied_rounded;
       case 'FEAR':
-        icon = Icons.sentiment_dissatisfied;
-        color = Colors.orange;
-        break;
+        return Icons.sentiment_dissatisfied_rounded;
+      case 'SURPRISE':
+        return Icons.sentiment_satisfied_rounded;
       default:
-        icon = Icons.sentiment_neutral;
-        color = Colors.grey;
-    }
-
-    return CircleAvatar(
-      backgroundColor: color.withOpacity(0.1),
-      radius: 24,
-      child: Icon(icon, color: color, size: 28),
-    );
-  }
-
-  Color _getEmotionColor(String emotionType) {
-    switch (emotionType) {
-      case 'HAPPY':
-        return Colors.green;
-      case 'SAD':
-        return Colors.blue;
-      case 'ANGRY':
-        return Colors.red;
-      case 'FEAR':
-        return Colors.orange;
-      default:
-        return Colors.grey;
+        return Icons.sentiment_neutral_rounded;
     }
   }
 
   String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        if (difference.inMinutes == 0) {
+          return 'Just now';
+        }
+        return '${difference.inMinutes}m ago';
+      }
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return DateFormat('MMM d, y').format(dateTime);
+    }
   }
 }
-

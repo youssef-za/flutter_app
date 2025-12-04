@@ -63,40 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Consumer<AuthProvider>(
           builder: (context, authProvider, _) {
-            final isPatient = authProvider.currentUser?.role == 'PATIENT';
-            return Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    isPatient ? Icons.dashboard_rounded : Icons.medical_services_rounded,
-                    color: colorScheme.onPrimaryContainer,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Emotion Monitoring',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    if (authProvider.currentUser != null)
-                      Text(
-                        authProvider.currentUser!.fullName,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+            return Text(
+              'Emotion Monitoring',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
             );
           },
         ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../providers/emotion_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -13,12 +12,12 @@ import '../../../widgets/weekly_statistics_widget.dart';
 import '../../../widgets/stress_indicator_widget.dart';
 import '../../../widgets/tips_widget.dart';
 import '../../../widgets/modern_card.dart';
-import '../../../widgets/animated_fade_in.dart';
+import '../../../config/app_theme.dart';
 import '../../../screens/camera/camera_screen.dart';
 import '../../../services/navigation_service.dart';
-import '../../../config/app_routes.dart';
-import 'history_tab.dart';
 
+/// Minimalist patient dashboard
+/// Clean design with soft colors and breathing room
 class PatientDashboardTab extends StatefulWidget {
   const PatientDashboardTab({super.key});
 
@@ -45,117 +44,101 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
   }
 
   Future<void> _captureEmotionFromCamera() async {
-    // Navigate to dedicated camera screen
     final result = await NavigationService.toEmotionCapture();
-
-    // Reload emotions if capture was successful
     if (result == true && mounted) {
       await _loadCurrentEmotion();
     }
   }
 
-  void _navigateToHistory() {
-    // Navigate to history tab - this is handled by HomeScreen's tab navigation
-    // The history tab is accessible via the bottom navigation bar
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return RefreshIndicator(
       onRefresh: _loadCurrentEmotion,
+      color: AppTheme.primaryBlue,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Welcome Section
-            _buildWelcomeSection(colorScheme),
-            const SizedBox(height: 24),
+            // Welcome Section - Minimalist
+            _buildWelcomeSection(theme),
+            const SizedBox(height: 32),
 
             // Current Emotion Card
             Consumer<EmotionProvider>(
               builder: (context, emotionProvider, _) {
                 if (emotionProvider.isLoading && emotionProvider.lastEmotion == null) {
-                  return const LoadingWidget(message: 'Loading your emotion...');
+                  return const LoadingWidget(message: 'Loading...');
                 }
 
                 if (emotionProvider.lastEmotion == null) {
-                  return _buildNoEmotionCard(colorScheme);
+                  return _buildNoEmotionCard(theme);
                 }
 
                 return _buildCurrentEmotionCard(
                   emotionProvider.lastEmotion!,
-                  colorScheme,
+                  theme,
                 );
               },
             ),
             const SizedBox(height: 24),
 
-            // Action Buttons
-            _buildActionButtons(colorScheme),
-            const SizedBox(height: 24),
+            // Action Button - Clean
+            _buildActionButton(theme),
+            const SizedBox(height: 32),
 
-            // Emotion Statistics
+            // Statistics Widgets
             Consumer<EmotionProvider>(
               builder: (context, emotionProvider, _) {
-                if (emotionProvider.emotions.isNotEmpty) {
-                  return AnimatedFadeIn(
-                    child: Column(
-                      children: [
-                        EmotionStatisticsWidget(emotions: emotionProvider.emotions),
-                        const SizedBox(height: 20),
-                        WeeklyStatisticsWidget(emotions: emotionProvider.emotions),
-                        const SizedBox(height: 20),
-                        StressIndicatorWidget(emotions: emotionProvider.emotions),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  );
+                if (emotionProvider.emotions.isEmpty) {
+                  return const SizedBox.shrink();
                 }
-                return const SizedBox.shrink();
-              },
-            ),
-            const SizedBox(height: 20),
-            
-            // Tips of the Day
-            Consumer<EmotionProvider>(
-              builder: (context, emotionProvider, _) {
-                return AnimatedFadeIn(
-                  child: TipsWidget(emotions: emotionProvider.emotions),
+                return Column(
+                  children: [
+                    EmotionStatisticsWidget(emotions: emotionProvider.emotions),
+                    const SizedBox(height: 16),
+                    WeeklyStatisticsWidget(emotions: emotionProvider.emotions),
+                    const SizedBox(height: 16),
+                    StressIndicatorWidget(emotions: emotionProvider.emotions),
+                    const SizedBox(height: 16),
+                  ],
                 );
               },
             ),
+            
+            // Tips Widget
+            const TipsWidget(),
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildWelcomeSection(ColorScheme colorScheme) {
+  Widget _buildWelcomeSection(ThemeData theme) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
         final userName = authProvider.currentUser?.fullName ?? 'Patient';
+        final firstName = userName.split(' ').first;
+        
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Welcome back,',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey[600],
+              'Welcome back',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: AppTheme.textSecondary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              userName.split(' ').first,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.primary,
+              firstName,
+              style: theme.textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.w400,
+                color: AppTheme.textPrimary,
               ),
             ),
           ],
@@ -164,117 +147,94 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
     );
   }
 
-  Widget _buildCurrentEmotionCard(EmotionModel emotion, ColorScheme colorScheme) {
-    final emotionColor = _getEmotionColor(emotion.emotionType);
-    final emotionIcon = _getEmotionIcon(emotion.emotionType);
-    final theme = Theme.of(context);
+  Widget _buildCurrentEmotionCard(EmotionModel emotion, ThemeData theme) {
+    final emotionColor = AppTheme.getEmotionColor(emotion.emotionType);
+    final lightColor = AppTheme.getEmotionLightColor(emotion.emotionType);
+    final confidence = (emotion.confidence * 100).toStringAsFixed(0);
 
     return ModernCard(
-      padding: const EdgeInsets.all(28.0),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              emotionColor.withOpacity(0.15),
-              emotionColor.withOpacity(0.05),
-            ],
+      padding: const EdgeInsets.all(32),
+      backgroundColor: lightColor,
+      child: Column(
+        children: [
+          // Icon - Large and Soft
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: emotionColor.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getEmotionIcon(emotion.emotionType),
+              size: 48,
+              color: emotionColor,
+            ),
           ),
-        ),
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            // Emotion Icon
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: emotionColor.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                emotionIcon,
-                size: 72,
+          const SizedBox(height: 24),
+
+          // Emotion Type - Clean
+          Text(
+            emotion.emotionType,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: emotionColor,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Confidence - Minimalist Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: emotionColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$confidence% confidence',
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: emotionColor,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 20),
 
-            // Emotion Type
-            Text(
-              emotion.emotionType,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: emotionColor,
-                fontWeight: FontWeight.bold,
-              ),
+          // Timestamp - Subtle
+          Text(
+            _formatDateTime(emotion.timestamp),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
             ),
-            const SizedBox(height: 16),
-
-            // Confidence
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: emotionColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                '${(emotion.confidence * 100).toStringAsFixed(1)}% Confidence',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: emotionColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Timestamp
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.access_time_rounded,
-                  size: 16,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  DateFormat('MMM dd, yyyy • HH:mm').format(emotion.timestamp),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildNoEmotionCard(ColorScheme colorScheme) {
-    final theme = Theme.of(context);
+  Widget _buildNoEmotionCard(ThemeData theme) {
     return ModernCard(
-      padding: const EdgeInsets.all(40.0),
+      padding: const EdgeInsets.all(40),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
+              color: AppTheme.dividerColor,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.sentiment_neutral_rounded,
-              size: 64,
-              color: colorScheme.onSurfaceVariant,
+              size: 36,
+              color: AppTheme.textTertiary,
             ),
           ),
           const SizedBox(height: 24),
           Text(
             'No emotion detected yet',
             style: theme.textTheme.titleLarge?.copyWith(
-              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
           ),
@@ -282,7 +242,7 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
           Text(
             'Capture your first emotion to get started',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: AppTheme.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -291,149 +251,59 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
     );
   }
 
-  Widget _buildActionButtons(ColorScheme colorScheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Capture Emotion Button
-        Consumer<EmotionProvider>(
-          builder: (context, emotionProvider, _) {
-            return CustomButton(
-              text: 'Capture New Emotion',
-              onPressed: emotionProvider.isLoading ? null : _captureEmotionFromCamera,
-              isLoading: emotionProvider.isLoading,
-              icon: Icons.camera_alt_rounded,
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-
-        // View History Button
-        CustomButton(
-          text: 'View Emotion History',
-          onPressed: _navigateToHistory,
-          icon: Icons.history_rounded,
-          isFilled: false,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickStats(List<EmotionModel> emotions, ColorScheme colorScheme) {
-    final totalEmotions = emotions.length;
-    final happyCount = emotions.where((e) => e.emotionType == 'HAPPY').length;
-    final sadCount = emotions.where((e) => e.emotionType == 'SAD').length;
-    final theme = Theme.of(context);
-
-    return ModernCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Stats',
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatItem(
-                  'Total',
-                  totalEmotions.toString(),
-                  Icons.emoji_emotions_rounded,
-                  colorScheme.primary,
-                  theme,
-                  colorScheme,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatItem(
-                  'Happy',
-                  happyCount.toString(),
-                  Icons.sentiment_very_satisfied_rounded,
-                  Colors.green,
-                  theme,
-                  colorScheme,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatItem(
-                  'Sad',
-                  sadCount.toString(),
-                  Icons.sentiment_very_dissatisfied_rounded,
-                  Colors.blue,
-                  theme,
-                  colorScheme,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon, Color color, ThemeData theme, ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
+  Widget _buildActionButton(ThemeData theme) {
+    return Consumer<EmotionProvider>(
+      builder: (context, emotionProvider, _) {
+        return FilledButton.icon(
+          onPressed: emotionProvider.isLoading ? null : _captureEmotionFromCamera,
+          icon: const Icon(Icons.camera_alt_rounded, size: 20),
+          label: const Text('Capture New Emotion'),
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   IconData _getEmotionIcon(String emotionType) {
     switch (emotionType) {
       case 'HAPPY':
-        return Icons.sentiment_very_satisfied;
+        return Icons.sentiment_very_satisfied_rounded;
       case 'SAD':
-        return Icons.sentiment_very_dissatisfied;
+        return Icons.sentiment_very_dissatisfied_rounded;
       case 'ANGRY':
-        return Icons.sentiment_very_dissatisfied;
+        return Icons.sentiment_very_dissatisfied_rounded;
       case 'FEAR':
-        return Icons.sentiment_dissatisfied;
+        return Icons.sentiment_dissatisfied_rounded;
+      case 'SURPRISE':
+        return Icons.sentiment_satisfied_rounded;
       default:
-        return Icons.sentiment_neutral;
+        return Icons.sentiment_neutral_rounded;
     }
   }
 
-  Color _getEmotionColor(String emotionType) {
-    switch (emotionType) {
-      case 'HAPPY':
-        return Colors.green;
-      case 'SAD':
-        return Colors.blue;
-      case 'ANGRY':
-        return Colors.red;
-      case 'FEAR':
-        return Colors.orange;
-      default:
-        return Colors.grey;
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays == 0) {
+      if (difference.inHours == 0) {
+        if (difference.inMinutes == 0) {
+          return 'Just now';
+        }
+        return '${difference.inMinutes}m ago';
+      }
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return DateFormat('MMM d, y').format(dateTime);
     }
   }
 }
-
-

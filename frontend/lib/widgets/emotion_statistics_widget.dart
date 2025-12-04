@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/emotion_model.dart';
+import '../config/app_theme.dart';
 import 'modern_card.dart';
 
+/// Minimalist emotion statistics widget
+/// Clean charts with soft colors and thin lines
 class EmotionStatisticsWidget extends StatelessWidget {
   final List<EmotionModel> emotions;
 
@@ -18,7 +21,6 @@ class EmotionStatisticsWidget extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     // Calculate emotion frequency
     final emotionFrequency = <String, int>{};
@@ -34,60 +36,60 @@ class EmotionStatisticsWidget extends StatelessWidget {
         : null;
 
     return ModernCard(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.bar_chart_rounded,
-                  color: colorScheme.onPrimaryContainer,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Emotion Frequency',
-                style: theme.textTheme.titleLarge,
-              ),
-            ],
+          // Header - Minimalist
+          Text(
+            'Emotion Frequency',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 24),
+          
+          // Most Frequent - Soft Design
           if (mostFrequent != null)
-            _buildMostFrequentEmotion(mostFrequent.key, mostFrequent.value, theme, colorScheme),
-          const SizedBox(height: 24),
-          _buildFrequencyChart(emotionFrequency, theme, colorScheme),
+            _buildMostFrequentEmotion(mostFrequent.key, mostFrequent.value, theme),
+          
+          if (mostFrequent != null) const SizedBox(height: 32),
+          
+          // Chart - Clean and Minimal
+          _buildFrequencyChart(emotionFrequency, theme),
         ],
       ),
     );
   }
 
-  Widget _buildMostFrequentEmotion(String emotionType, int count, ThemeData theme, ColorScheme colorScheme) {
-    final color = _getEmotionColor(emotionType);
+  Widget _buildMostFrequentEmotion(String emotionType, int count, ThemeData theme) {
+    final color = AppTheme.getEmotionColor(emotionType);
+    final lightColor = AppTheme.getEmotionLightColor(emotionType);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        color: lightColor,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
+          // Icon - Soft Circle
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withOpacity(0.15),
               shape: BoxShape.circle,
             ),
-            child: Icon(_getEmotionIcon(emotionType), color: color, size: 28),
+            child: Icon(
+              _getEmotionIcon(emotionType),
+              color: color,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
+          // Text - Clean
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,25 +97,26 @@ class EmotionStatisticsWidget extends StatelessWidget {
                 Text(
                   'Most Detected',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                    color: AppTheme.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   emotionType,
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     color: color,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
+          // Count - Large and Soft
           Text(
-            '$count times',
-            style: theme.textTheme.headlineSmall?.copyWith(
+            '$count',
+            style: theme.textTheme.headlineMedium?.copyWith(
               color: color,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -121,46 +124,64 @@ class EmotionStatisticsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildFrequencyChart(Map<String, int> frequency, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildFrequencyChart(Map<String, int> frequency, ThemeData theme) {
     final emotionTypes = ['HAPPY', 'SAD', 'ANGRY', 'FEAR', 'NEUTRAL'];
     final bars = <BarChartGroupData>[];
 
     for (int i = 0; i < emotionTypes.length; i++) {
       final type = emotionTypes[i];
       final count = frequency[type] ?? 0;
+      final color = AppTheme.getEmotionColor(type);
+      
       bars.add(
         BarChartGroupData(
           x: i,
           barRods: [
             BarChartRodData(
               toY: count.toDouble(),
-              color: _getEmotionColor(type),
-              width: 20,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+              color: color,
+              width: 16, // Thinner bars
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
             ),
           ],
         ),
       );
     }
 
+    final maxValue = frequency.values.isEmpty
+        ? 1
+        : frequency.values.reduce((a, b) => a > b ? a : b);
+
     return SizedBox(
-      height: 200,
+      height: 180, // Smaller height
       child: BarChart(
         BarChartData(
-          gridData: FlGridData(show: false),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxValue > 0 ? (maxValue / 4).ceil().toDouble() : 1,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: AppTheme.dividerColor.withOpacity(0.3),
+                strokeWidth: 1,
+              );
+            },
+          ),
           titlesData: FlTitlesData(
             show: true,
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                reservedSize: 30,
                 getTitlesWidget: (value, meta) {
                   if (value.toInt() >= 0 && value.toInt() < emotionTypes.length) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
                         emotionTypes[value.toInt()],
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textTertiary,
+                          fontSize: 11,
                         ),
                       ),
                     );
@@ -172,13 +193,14 @@ class EmotionStatisticsWidget extends StatelessWidget {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 40,
+                reservedSize: 35,
                 getTitlesWidget: (value, meta) {
-                  if (value.toInt() == value) {
+                  if (value.toInt() == value && value.toInt() >= 0) {
                     return Text(
                       value.toInt().toString(),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
                       ),
                     );
                   }
@@ -195,9 +217,10 @@ class EmotionStatisticsWidget extends StatelessWidget {
           ),
           borderData: FlBorderData(show: false),
           barGroups: bars,
-          maxY: frequency.values.isEmpty
-              ? 1
-              : frequency.values.reduce((a, b) => a > b ? a : b).toDouble() + 1,
+          maxY: maxValue.toDouble() + (maxValue > 0 ? 1 : 0),
+          barTouchData: BarTouchData(
+            enabled: false,
+          ),
         ),
       ),
     );
@@ -206,31 +229,15 @@ class EmotionStatisticsWidget extends StatelessWidget {
   IconData _getEmotionIcon(String emotionType) {
     switch (emotionType) {
       case 'HAPPY':
-        return Icons.sentiment_very_satisfied;
+        return Icons.sentiment_very_satisfied_rounded;
       case 'SAD':
-        return Icons.sentiment_very_dissatisfied;
+        return Icons.sentiment_very_dissatisfied_rounded;
       case 'ANGRY':
-        return Icons.sentiment_very_dissatisfied;
+        return Icons.sentiment_very_dissatisfied_rounded;
       case 'FEAR':
-        return Icons.sentiment_dissatisfied;
+        return Icons.sentiment_dissatisfied_rounded;
       default:
-        return Icons.sentiment_neutral;
-    }
-  }
-
-  Color _getEmotionColor(String emotionType) {
-    switch (emotionType) {
-      case 'HAPPY':
-        return Colors.green;
-      case 'SAD':
-        return Colors.blue;
-      case 'ANGRY':
-        return Colors.red;
-      case 'FEAR':
-        return Colors.orange;
-      default:
-        return Colors.grey;
+        return Icons.sentiment_neutral_rounded;
     }
   }
 }
-

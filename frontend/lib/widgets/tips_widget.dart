@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import '../models/emotion_model.dart';
+import '../config/app_theme.dart';
 import 'modern_card.dart';
 
+/// Minimalist tips widget
+/// Clean design without gradients
 class TipsWidget extends StatelessWidget {
-  final List<EmotionModel>? emotions;
-
-  const TipsWidget({
-    super.key,
-    this.emotions,
-  });
+  const TipsWidget({super.key});
 
   static final List<String> _tips = [
     'Take deep breaths when feeling stressed. Inhale for 4 counts, hold for 4, exhale for 4.',
@@ -26,80 +23,52 @@ class TipsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get a random tip or tip based on current emotion
-    String tip = _getTipForToday();
-    
+    final tip = _getTipForToday();
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final lightColor = AppTheme.primaryBlueLight;
 
     return ModernCard(
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              colorScheme.primaryContainer.withOpacity(0.5),
-              colorScheme.secondaryContainer.withOpacity(0.3),
+      padding: const EdgeInsets.all(24),
+      backgroundColor: lightColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header - Minimalist
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBlue.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: AppTheme.primaryBlue,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Tip of the Day',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
-        ),
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.lightbulb_rounded,
-                    color: colorScheme.onPrimaryContainer,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Tip of the Day',
-                  style: theme.textTheme.titleLarge,
-                ),
-              ],
+          const SizedBox(height: 20),
+          
+          // Tip Text - Clean
+          Text(
+            tip,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              height: 1.6,
+              color: AppTheme.textPrimary,
             ),
-            const SizedBox(height: 20),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer.withOpacity(0.6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.psychology_rounded,
-                    color: colorScheme.onPrimaryContainer,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    tip,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      height: 1.6,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -113,4 +82,3 @@ class TipsWidget extends StatelessWidget {
     return _tips[dayOfYear % _tips.length];
   }
 }
-

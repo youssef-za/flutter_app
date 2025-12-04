@@ -42,23 +42,18 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => EmotionStatisticsProvider()),
         ChangeNotifierProvider(create: (_) => PatientTagProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
-          return MaterialApp(
-            title: 'Emotion Monitoring',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.themeMode,
-            navigatorKey: NavigationService.navigatorKey,
-            initialRoute: AppRoutes.splash,
-            routes: _buildRoutes(),
-            onGenerateRoute: _generateRoute,
-            // Material 3 page transitions
-            themeAnimationDuration: const Duration(milliseconds: 300),
-            themeAnimationCurve: Curves.easeInOut,
-          );
-        },
+      child: MaterialApp(
+        title: 'Emotion Monitoring',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        // No dark theme - light mode only
+        navigatorKey: NavigationService.navigatorKey,
+        initialRoute: AppRoutes.splash,
+        routes: _buildRoutes(),
+        onGenerateRoute: _generateRoute,
+        // Smooth page transitions
+        themeAnimationDuration: const Duration(milliseconds: 300),
+        themeAnimationCurve: Curves.easeInOut,
       ),
     );
   }

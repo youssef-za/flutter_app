@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/emotion_model.dart';
+import '../config/app_theme.dart';
 import 'modern_card.dart';
 
+/// Minimalist stress indicator widget
+/// Clean design with soft colors
 class StressIndicatorWidget extends StatelessWidget {
   final List<EmotionModel> emotions;
 
@@ -26,55 +29,39 @@ class StressIndicatorWidget extends StatelessWidget {
     
     Color stressColor;
     String stressLabel;
-    IconData stressIcon;
     
-    if (stressLevel < 25) {
-      stressColor = Colors.green;
+    if (stressLevel < 30) {
+      stressColor = AppTheme.emotionHappy;
       stressLabel = 'Low';
-      stressIcon = Icons.sentiment_very_satisfied;
     } else if (stressLevel < 50) {
-      stressColor = Colors.orange;
+      stressColor = AppTheme.emotionSurprise;
       stressLabel = 'Moderate';
-      stressIcon = Icons.sentiment_neutral;
-    } else if (stressLevel < 75) {
-      stressColor = Colors.deepOrange;
+    } else if (stressLevel < 70) {
+      stressColor = AppTheme.emotionFear;
       stressLabel = 'High';
-      stressIcon = Icons.sentiment_dissatisfied;
     } else {
-      stressColor = Colors.red;
+      stressColor = AppTheme.emotionAngry;
       stressLabel = 'Very High';
-      stressIcon = Icons.sentiment_very_dissatisfied;
     }
 
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final lightColor = stressColor.withOpacity(0.1);
 
     return ModernCard(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.psychology_rounded,
-                  color: colorScheme.onPrimaryContainer,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Stress Level Indicator',
-                style: theme.textTheme.titleLarge,
-              ),
-            ],
+          // Header - Minimalist
+          Text(
+            'Stress Level',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 24),
+          
+          // Level Display - Clean
           Row(
             children: [
               Expanded(
@@ -85,79 +72,73 @@ class StressIndicatorWidget extends StatelessWidget {
                       stressLabel,
                       style: theme.textTheme.headlineSmall?.copyWith(
                         color: stressColor,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '$stressLevel% stress level',
+                      '$stressLevel%',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
+              // Icon - Soft Circle
               Container(
-                padding: const EdgeInsets.all(12),
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: stressColor.withOpacity(0.1),
+                  color: lightColor,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(stressIcon, size: 40, color: stressColor),
+                child: Icon(
+                  _getStressIcon(stressLevel),
+                  color: stressColor,
+                  size: 28,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          
+          const SizedBox(height: 20),
+          
+          // Progress Bar - Thin and Clean
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: stressLevel / 100,
-              minHeight: 14,
-              backgroundColor: colorScheme.surfaceContainerHighest,
+              minHeight: 8,
+              backgroundColor: AppTheme.dividerColor,
               valueColor: AlwaysStoppedAnimation<Color>(stressColor),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '0%',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Text(
-                '100%',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
+          
+          // Recommendation - Only if high stress
           if (stressLevel >= 50) ...[
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: stressColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: stressColor.withOpacity(0.3),
-                  width: 1,
-                ),
+                color: lightColor,
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline_rounded, color: stressColor, size: 22),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: stressColor,
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Consider taking a break or speaking with your doctor',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: stressColor,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
@@ -169,5 +150,16 @@ class StressIndicatorWidget extends StatelessWidget {
       ),
     );
   }
-}
 
+  IconData _getStressIcon(int level) {
+    if (level < 30) {
+      return Icons.sentiment_very_satisfied_rounded;
+    } else if (level < 50) {
+      return Icons.sentiment_neutral_rounded;
+    } else if (level < 70) {
+      return Icons.sentiment_dissatisfied_rounded;
+    } else {
+      return Icons.sentiment_very_dissatisfied_rounded;
+    }
+  }
+}

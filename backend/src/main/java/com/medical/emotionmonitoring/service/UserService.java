@@ -4,6 +4,9 @@ import com.medical.emotionmonitoring.dto.RegisterRequest;
 import com.medical.emotionmonitoring.dto.UserResponse;
 import com.medical.emotionmonitoring.entity.Role;
 import com.medical.emotionmonitoring.entity.User;
+import com.medical.emotionmonitoring.exception.BusinessException;
+import com.medical.emotionmonitoring.exception.EntityNotFoundException;
+import com.medical.emotionmonitoring.exception.ValidationException;
 import com.medical.emotionmonitoring.repository.UserRepository;
 import com.medical.emotionmonitoring.validation.PasswordValidator;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +27,13 @@ public class UserService {
     @Transactional
     public UserResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new BusinessException("Email already exists");
         }
 
         // Validate password strength
         PasswordValidator.ValidationResult passwordValidation = PasswordValidator.validate(request.getPassword());
         if (!passwordValidation.isValid()) {
-            throw new RuntimeException(passwordValidation.getMessage());
+            throw new ValidationException(passwordValidation.getMessage());
         }
 
         User user = new User();
@@ -45,13 +48,13 @@ public class UserService {
 
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + id));
         return mapToUserResponse(user);
     }
 
     public UserResponse getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
         return mapToUserResponse(user);
     }
 
@@ -71,12 +74,12 @@ public class UserService {
     @Transactional
     public UserResponse updateUserProfile(String email, com.medical.emotionmonitoring.dto.UpdateProfileRequest request) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
 
         // Check if email is being changed and if it's already taken
         if (!user.getEmail().equals(request.getEmail())) {
             if (userRepository.existsByEmail(request.getEmail())) {
-                throw new RuntimeException("Email already exists");
+                throw new BusinessException("Email already exists");
             }
         }
 
@@ -102,17 +105,17 @@ public class UserService {
     @Transactional
     public void changePassword(String email, String currentPassword, String newPassword) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
 
         // Verify current password
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-            throw new RuntimeException("Current password is incorrect");
+            throw new BusinessException("Current password is incorrect");
         }
 
         // Validate new password strength
         PasswordValidator.ValidationResult passwordValidation = PasswordValidator.validate(newPassword);
         if (!passwordValidation.isValid()) {
-            throw new RuntimeException(passwordValidation.getMessage());
+            throw new ValidationException(passwordValidation.getMessage());
         }
 
         // Update password
@@ -123,17 +126,17 @@ public class UserService {
     @Transactional
     public void assignPatientToDoctor(Long doctorId, Long patientId) {
         User doctor = userRepository.findById(doctorId)
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + doctorId));
         
         if (doctor.getRole() != Role.DOCTOR) {
-            throw new RuntimeException("User is not a doctor");
+            throw new BusinessException("User is not a doctor");
         }
 
         User patient = userRepository.findById(patientId)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + patientId));
         
         if (patient.getRole() != Role.PATIENT) {
-            throw new RuntimeException("User is not a patient");
+            throw new BusinessException("User is not a patient");
         }
 
         if (doctor.getAssignedPatients() == null) {
@@ -149,10 +152,10 @@ public class UserService {
     @Transactional
     public void unassignPatientFromDoctor(Long doctorId, Long patientId) {
         User doctor = userRepository.findById(doctorId)
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + doctorId));
         
         if (doctor.getRole() != Role.DOCTOR) {
-            throw new RuntimeException("User is not a doctor");
+            throw new BusinessException("User is not a doctor");
         }
 
         if (doctor.getAssignedPatients() != null) {
@@ -165,24 +168,24 @@ public class UserService {
     public UserResponse updatePatientInfo(Long patientId, Long doctorId, 
                                          com.medical.emotionmonitoring.dto.UpdatePatientRequest request) {
         User patient = userRepository.findById(patientId)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + patientId));
 
         if (patient.getRole() != Role.PATIENT) {
-            throw new RuntimeException("User is not a patient");
+            throw new BusinessException("User is not a patient");
         }
 
         User doctor = userRepository.findById(doctorId)
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Doctor not found with id: " + doctorId));
 
         if (doctor.getRole() != Role.DOCTOR) {
-            throw new RuntimeException("User is not a doctor");
+            throw new BusinessException("User is not a doctor");
         }
 
         // Check if email is already taken by another user
         if (!patient.getEmail().equals(request.getEmail())) {
             userRepository.findByEmail(request.getEmail()).ifPresent(existingUser -> {
                 if (!existingUser.getId().equals(patientId)) {
-                    throw new RuntimeException("Email already exists");
+                    throw new BusinessException("Email already exists");
                 }
             });
         }
@@ -199,7 +202,7 @@ public class UserService {
             try {
                 patient.setGender(com.medical.emotionmonitoring.entity.Gender.valueOf(request.getGender()));
             } catch (IllegalArgumentException e) {
-                throw new RuntimeException("Invalid gender value: " + request.getGender());
+                throw new ValidationException("Invalid gender value: " + request.getGender());
             }
         }
 

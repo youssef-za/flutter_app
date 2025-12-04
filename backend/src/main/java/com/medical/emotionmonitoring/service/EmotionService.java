@@ -8,6 +8,8 @@ import com.medical.emotionmonitoring.entity.Emotion;
 import com.medical.emotionmonitoring.entity.EmotionTypeEnum;
 import com.medical.emotionmonitoring.entity.Role;
 import com.medical.emotionmonitoring.entity.User;
+import com.medical.emotionmonitoring.exception.BusinessException;
+import com.medical.emotionmonitoring.exception.EntityNotFoundException;
 import com.medical.emotionmonitoring.repository.EmotionRepository;
 import com.medical.emotionmonitoring.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +35,7 @@ public class EmotionService {
     @Transactional
     public EmotionResponse createEmotion(Long patientId, EmotionRequest request) {
         User patient = userRepository.findById(patientId)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + patientId));
 
         Emotion emotion = new Emotion();
         emotion.setEmotionType(request.getEmotionType());
@@ -55,7 +57,7 @@ public class EmotionService {
     @Transactional
     public EmotionResponse createEmotionFromImage(Long patientId, MultipartFile imageFile) {
         User patient = userRepository.findById(patientId)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + patientId));
 
         // Detect emotion from image
         EmotionDetectionResponse detectionResponse = emotionDetectionService.detectEmotionFromImage(imageFile);
@@ -116,7 +118,7 @@ public class EmotionService {
             }
 
             User patient = userRepository.findById(patientId)
-                    .orElseThrow(() -> new RuntimeException("Patient not found"));
+                    .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + patientId));
 
             String message = String.format(
                     "Alert: Patient %s has recorded 3 consecutive SAD emotions. Please review their emotional state.",
@@ -135,10 +137,10 @@ public class EmotionService {
 
     public EmotionResponse getEmotionById(Long id, Long patientId) {
         Emotion emotion = emotionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Emotion not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Emotion not found with id: " + id));
 
         if (!emotion.getPatient().getId().equals(patientId)) {
-            throw new RuntimeException("Unauthorized access to emotion");
+            throw new BusinessException("Unauthorized access to emotion");
         }
 
         return mapToResponse(emotion);
@@ -147,12 +149,12 @@ public class EmotionService {
     public List<EmotionResponse> getEmotionHistoryByPatientId(Long patientId, Long currentUserId, Role currentUserRole) {
         // Check if patient exists
         if (!userRepository.existsById(patientId)) {
-            throw new RuntimeException("Patient not found");
+            throw new EntityNotFoundException("Patient not found with id: " + patientId);
         }
 
         // Authorization check: Patients can only view their own history, Doctors can view any patient's history
         if (currentUserRole == Role.PATIENT && !patientId.equals(currentUserId)) {
-            throw new RuntimeException("Unauthorized: Patients can only view their own emotion history");
+            throw new BusinessException("Unauthorized: Patients can only view their own emotion history");
         }
 
         List<Emotion> emotions = emotionRepository.findByPatientIdOrderByTimestampDesc(patientId);
