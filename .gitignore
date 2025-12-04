@@ -1,0 +1,80 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backend (Spring Boot)
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+backend/*.jar
+backend/*.war
+backend/*.ear
+backend/*.class
+backend/application-local.properties
+backend/.env
+backend/.classpath
+backend/.project
+backend/.settings/
+
+# Frontend (Flutter)
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/.pub-cache/
+frontend/.pub/
+frontend/build/
+frontend/**/android/app/debug
+frontend/**/android/app/profile
+frontend/**/android/app/release
+frontend/**/ios/Flutter/.last_build_id
+frontend/**/ios/Flutter/Flutter.framework
+frontend/**/ios/Flutter/Flutter.podspec
+frontend/**/ios/Flutter/Generated.xcconfig
+frontend/**/ios/Flutter/app.flx
+frontend/**/ios/Flutter/app.zip
+frontend/**/ios/Flutter/flutter_assets/
+frontend/**/ios/Flutter/flutter_export_environment.sh
+frontend/**/ios/ServiceDefinitions.json
+frontend/**/ios/Runner/GeneratedPluginRegistrant.*
+
+# Logs
+*.log
+*.log.*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Maven
+.m2/repository/
+
+# Node modules (if any)
+node_modules/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# System files
+.DS_Store
+Thumbs.db
