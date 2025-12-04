@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../config/app_routes.dart';
+import '../../../models/user_model.dart';
 import '../../../providers/patient_provider.dart';
 import '../../../providers/alert_provider.dart';
 import '../../../providers/emotion_provider.dart';
@@ -11,6 +13,12 @@ import '../../../models/alert_model.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_state_widget.dart';
 import '../../../widgets/emotion_chart.dart';
+import '../../../widgets/patient_search_bar.dart';
+import '../../../widgets/patient_filters_widget.dart';
+import '../../../widgets/modern_card.dart';
+import '../../../widgets/animated_fade_in.dart';
+import '../../../providers/patient_note_provider.dart';
+import '../../../models/patient_note_model.dart';
 
 class DoctorDashboardTab extends StatefulWidget {
   const DoctorDashboardTab({super.key});
@@ -20,11 +28,125 @@ class DoctorDashboardTab extends StatefulWidget {
 }
 
 class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
+  final TextEditingController _searchController = TextEditingController();
+  FilterPeriod _selectedFilter = FilterPeriod.all;
+  String? _sortBy = 'recent';
+  List<UserModel> _filteredPatients = [];
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+      _applyFilters();
+    });
+  }
+
+  void _applyFilters() {
+    final patientProvider = Provider.of<PatientProvider>(context, listen: false);
+    List<UserModel> filtered = List.from(patientProvider.patients);
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((patient) {
+        return patient.fullName.toLowerCase().contains(_searchQuery) ||
+               patient.email.toLowerCase().contains(_searchQuery);
+      }).toList();
+    }
+
+    // Apply date filter
+    final now = DateTime.now();
+    switch (_selectedFilter) {
+      case FilterPeriod.today:
+        filtered = filtered.where((patient) {
+          final latestEmotion = patientProvider.getLatestEmotionForPatient(patient.id);
+          if (latestEmotion == null) return false;
+          return latestEmotion.timestamp.day == now.day &&
+                 latestEmotion.timestamp.month == now.month &&
+                 latestEmotion.timestamp.year == now.year;
+        }).toList();
+        break;
+      case FilterPeriod.week:
+        final weekAgo = now.subtract(const Duration(days: 7));
+        filtered = filtered.where((patient) {
+          final latestEmotion = patientProvider.getLatestEmotionForPatient(patient.id);
+          if (latestEmotion == null) return false;
+          return latestEmotion.timestamp.isAfter(weekAgo);
+        }).toList();
+        break;
+      case FilterPeriod.month:
+        final monthAgo = now.subtract(const Duration(days: 30));
+        filtered = filtered.where((patient) {
+          final latestEmotion = patientProvider.getLatestEmotionForPatient(patient.id);
+          if (latestEmotion == null) return false;
+          return latestEmotion.timestamp.isAfter(monthAgo);
+        }).toList();
+        break;
+      case FilterPeriod.all:
+        break;
+    }
+
+    // Apply sorting
+    switch (_sortBy) {
+      case 'recent':
+        filtered.sort((a, b) {
+          final emotionA = patientProvider.getLatestEmotionForPatient(a.id);
+          final emotionB = patientProvider.getLatestEmotionForPatient(b.id);
+          if (emotionA == null && emotionB == null) return 0;
+          if (emotionA == null) return 1;
+          if (emotionB == null) return -1;
+          return emotionB.timestamp.compareTo(emotionA.timestamp);
+        });
+        break;
+      case 'critical':
+        filtered.sort((a, b) {
+          final emotionA = patientProvider.getLatestEmotionForPatient(a.id);
+          final emotionB = patientProvider.getLatestEmotionForPatient(b.id);
+          if (emotionA == null && emotionB == null) return 0;
+          if (emotionA == null) return 1;
+          if (emotionB == null) return -1;
+          
+          // Critical emotions: SAD, ANGRY, FEAR
+          final criticalA = emotionA.emotionType == 'SAD' || 
+                           emotionA.emotionType == 'ANGRY' || 
+                           emotionA.emotionType == 'FEAR';
+          final criticalB = emotionB.emotionType == 'SAD' || 
+                           emotionB.emotionType == 'ANGRY' || 
+                           emotionB.emotionType == 'FEAR';
+          
+          if (criticalA && !criticalB) return -1;
+          if (!criticalA && criticalB) return 1;
+          return emotionB.timestamp.compareTo(emotionA.timestamp);
+        });
+        break;
+      case 'name':
+        filtered.sort((a, b) => a.fullName.compareTo(b.fullName));
+        break;
+      case 'date':
+        filtered.sort((a, b) {
+          final dateA = a.createdAt ?? DateTime(1970);
+          final dateB = b.createdAt ?? DateTime(1970);
+          return dateB.compareTo(dateA);
+        });
+        break;
+    }
+
+    setState(() {
+      _filteredPatients = filtered;
     });
   }
 
@@ -41,6 +163,8 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
         alertProvider.loadAlertsByDoctorId(doctorId),
         alertProvider.loadUnreadAlertsByDoctorId(doctorId),
       ]);
+      
+      _applyFilters();
     }
   }
 
@@ -64,7 +188,7 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
             // Alerts Section
             Consumer<AlertProvider>(
               builder: (context, alertProvider, _) {
-                return _buildAlertsSection(alertProvider, colorScheme);
+                return _buildAlertsSection(alertProvider, colorScheme, theme);
               },
             ),
             const SizedBox(height: 20),
@@ -72,9 +196,13 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
             // Statistics Overview
             Consumer<PatientProvider>(
               builder: (context, patientProvider, _) {
-                return _buildStatisticsOverview(patientProvider, colorScheme);
+                return _buildStatisticsOverview(patientProvider, colorScheme, theme);
               },
             ),
+            const SizedBox(height: 20),
+
+            // Search and Filters
+            _buildSearchAndFilters(colorScheme),
             const SizedBox(height: 20),
 
             // Patients List
@@ -86,58 +214,55 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
   }
 
   Widget _buildWelcomeSection(ColorScheme colorScheme) {
+    final theme = Theme.of(context);
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
         final userName = authProvider.currentUser?.fullName ?? 'Doctor';
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        return ModernCard(
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  colorScheme.primary.withOpacity(0.1),
-                  colorScheme.secondary.withOpacity(0.05),
+                  colorScheme.primaryContainer.withOpacity(0.6),
+                  colorScheme.secondaryContainer.withOpacity(0.4),
                 ],
               ),
             ),
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(24.0),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.2),
+                    color: colorScheme.primaryContainer,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.medical_services_rounded,
-                    size: 32,
-                    color: colorScheme.primary,
+                    size: 36,
+                    color: colorScheme.onPrimaryContainer,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Welcome, Dr. ${userName.split(' ').first}',
-                        style: TextStyle(
-                          fontSize: 22,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
-                          color: colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         'Monitor your patients\' emotional well-being',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -151,7 +276,7 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
     );
   }
 
-  Widget _buildAlertsSection(AlertProvider alertProvider, ColorScheme colorScheme) {
+  Widget _buildAlertsSection(AlertProvider alertProvider, ColorScheme colorScheme, ThemeData theme) {
     if (alertProvider.isLoading && alertProvider.unreadAlerts.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -198,25 +323,33 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             if (alertProvider.unreadAlerts.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16.0),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Text(
                   'No new alerts',
-                  style: TextStyle(color: Colors.grey),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               )
             else
               ...alertProvider.unreadAlerts.take(3).map((alert) {
-                return _buildAlertCard(alert, colorScheme);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildAlertCard(alert, colorScheme, theme),
+                );
               }).toList(),
             if (alertProvider.unreadAlerts.length > 3)
-              TextButton(
-                onPressed: () {
-                  // TODO: Navigate to full alerts screen
-                },
-                child: const Text('View all alerts'),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextButton(
+                  onPressed: () {
+                    // TODO: Navigate to full alerts screen
+                  },
+                  child: const Text('View all alerts'),
+                ),
               ),
           ],
         ),
@@ -224,33 +357,58 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
     );
   }
 
-  Widget _buildAlertCard(AlertModel alert, ColorScheme colorScheme) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.red[50],
+  Widget _buildAlertCard(AlertModel alert, ColorScheme colorScheme, ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.errorContainer.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.red,
-          child: const Icon(Icons.warning, color: Colors.white, size: 20),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: colorScheme.errorContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.warning_rounded,
+            color: colorScheme.onErrorContainer,
+            size: 22,
+          ),
         ),
         title: Text(
           alert.patientName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Text(alert.message),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
+            Text(
+              alert.message,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 6),
             Text(
               DateFormat('MMM dd, yyyy HH:mm').format(alert.createdAt),
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
         trailing: IconButton(
-          icon: const Icon(Icons.close),
+          icon: Icon(
+            Icons.close_rounded,
+            color: colorScheme.onSurfaceVariant,
+          ),
           onPressed: () async {
             final alertProvider = Provider.of<AlertProvider>(context, listen: false);
             await alertProvider.markAlertAsRead(alert.id);
@@ -260,7 +418,7 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
     );
   }
 
-  Widget _buildStatisticsOverview(PatientProvider patientProvider, ColorScheme colorScheme) {
+  Widget _buildStatisticsOverview(PatientProvider patientProvider, ColorScheme colorScheme, ThemeData theme) {
     final totalPatients = patientProvider.patients.length;
     final patientsWithEmotions = patientProvider.patientLatestEmotions.keys.length;
 
@@ -288,6 +446,8 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
                     totalPatients.toString(),
                     Icons.people,
                     colorScheme.primary,
+                    theme,
+                    colorScheme,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -297,6 +457,8 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
                     patientsWithEmotions.toString(),
                     Icons.favorite,
                     Colors.green,
+                    theme,
+                    colorScheme,
                   ),
                 ),
               ],
@@ -307,31 +469,36 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String label, String value, IconData icon, Color color, ThemeData theme, ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 12),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+            style: theme.textTheme.headlineSmall?.copyWith(
               color: color,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -340,16 +507,62 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
     );
   }
 
+  Widget _buildSearchAndFilters(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PatientSearchBar(
+          controller: _searchController,
+          onChanged: (_) => _applyFilters(),
+          onClear: _applyFilters,
+        ),
+        const SizedBox(height: 12),
+        PatientFiltersWidget(
+          selectedFilter: _selectedFilter,
+          onFilterChanged: (filter) {
+            setState(() {
+              _selectedFilter = filter;
+            });
+            _applyFilters();
+          },
+          sortBy: _sortBy,
+          onSortChanged: (sort) {
+            setState(() {
+              _sortBy = sort;
+            });
+            _applyFilters();
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildPatientsSection(ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Patients',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Patients',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Consumer<PatientProvider>(
+              builder: (context, patientProvider, _) {
+                return Text(
+                  '${_filteredPatients.length} ${_filteredPatients.length == 1 ? 'patient' : 'patients'}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Consumer<PatientProvider>(
@@ -358,17 +571,21 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
               return const LoadingWidget(message: 'Loading patients...');
             }
 
-            if (patientProvider.patients.isEmpty) {
+            if (_filteredPatients.isEmpty) {
               return EmptyStateWidget(
                 icon: Icons.people_outline,
                 title: 'No patients found',
-                message: 'Patients will appear here once they register',
+                message: _searchQuery.isNotEmpty
+                    ? 'Try adjusting your search or filters'
+                    : 'Patients will appear here once they register',
               );
             }
 
             return Column(
-              children: patientProvider.patients.map((patient) {
-                return _buildPatientCard(patient, patientProvider, colorScheme);
+              children: _filteredPatients.map((patient) {
+                return AnimatedFadeIn(
+                  child: _buildPatientCard(patient, patientProvider, colorScheme),
+                );
               }).toList(),
             );
           },
@@ -383,139 +600,205 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
     ColorScheme colorScheme,
   ) {
     final latestEmotion = patientProvider.getLatestEmotionForPatient(patient.id);
+    final isCritical = latestEmotion != null &&
+        (latestEmotion.emotionType == 'SAD' ||
+         latestEmotion.emotionType == 'ANGRY' ||
+         latestEmotion.emotionType == 'FEAR');
 
-    return Card(
-      elevation: 2,
+    return ModernCard(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: () {
-          // TODO: Navigate to patient details
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.patientDetail,
+          arguments: patient,
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: colorScheme.primary.withOpacity(0.1),
-                    child: Text(
-                      patient.fullName.isNotEmpty
-                          ? patient.fullName[0].toUpperCase()
-                          : 'P',
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: colorScheme.primary.withOpacity(0.1),
+                child: Text(
+                  patient.fullName.isNotEmpty
+                      ? patient.fullName[0].toUpperCase()
+                      : 'P',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            patient.fullName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (isCritical)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.warning, size: 14, color: Colors.red),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Critical',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      patient.email,
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.primary,
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
                     ),
+                  ],
+                ),
+              ),
+              if (latestEmotion != null)
+                _buildEmotionBadge(latestEmotion),
+            ],
+          ),
+          if (latestEmotion != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _getEmotionColor(latestEmotion.emotionType).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _getEmotionIcon(latestEmotion.emotionType),
+                    color: _getEmotionColor(latestEmotion.emotionType),
+                    size: 20,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          patient.fullName,
-                          style: const TextStyle(
-                            fontSize: 16,
+                          'Latest: ${latestEmotion.emotionType}',
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
+                            color: _getEmotionColor(latestEmotion.emotionType),
                           ),
                         ),
-                        const SizedBox(height: 4),
                         Text(
-                          patient.email,
+                          DateFormat('MMM dd, yyyy HH:mm').format(latestEmotion.timestamp),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             color: Colors.grey[600],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (latestEmotion != null)
-                    _buildEmotionBadge(latestEmotion),
+                  Text(
+                    '${(latestEmotion.confidence * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _getEmotionColor(latestEmotion.emotionType),
+                    ),
+                  ),
                 ],
               ),
-              if (latestEmotion != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _getEmotionColor(latestEmotion.emotionType).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'No emotions recorded yet',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _getEmotionIcon(latestEmotion.emotionType),
-                        color: _getEmotionColor(latestEmotion.emotionType),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Latest: ${latestEmotion.emotionType}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: _getEmotionColor(latestEmotion.emotionType),
-                              ),
-                            ),
-                            Text(
-                              DateFormat('MMM dd, yyyy HH:mm').format(latestEmotion.timestamp),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
+                ],
+              ),
+            ),
+          ],
+          // Notes preview
+          const SizedBox(height: 12),
+          Consumer<PatientNoteProvider>(
+            builder: (context, noteProvider, _) {
+              return FutureBuilder(
+                future: _loadPatientNotes(patient.id, noteProvider),
+                builder: (context, snapshot) {
+                  final notes = noteProvider.notes
+                      .where((n) => n.patientId == patient.id)
+                      .toList();
+                  
+                  if (notes.isNotEmpty) {
+                    return Row(
+                      children: [
+                        Icon(Icons.note, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${notes.length} ${notes.length == 1 ? 'note' : 'notes'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${(latestEmotion.confidence * 100).toStringAsFixed(0)}%',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _getEmotionColor(latestEmotion.emotionType),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.grey[600], size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'No emotions recorded yet',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  Future<void> _loadPatientNotes(int patientId, PatientNoteProvider noteProvider) async {
+    if (noteProvider.notes.where((n) => n.patientId == patientId).isEmpty) {
+      await noteProvider.loadNotesByPatientId(patientId);
+    }
   }
 
   Widget _buildEmotionBadge(EmotionModel emotion) {

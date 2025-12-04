@@ -50,6 +50,32 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Profile fields for Patient
+    @Column(name = "age")
+    private Integer age;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender")
+    private Gender gender;
+
+    @Column(name = "profile_picture", length = 1000)
+    private String profilePicture; // URL or base64 string
+
+    @Column(name = "last_connected_date")
+    private LocalDateTime lastConnectedDate;
+
+    // Profile fields for Doctor
+    @Column(name = "specialty")
+    private String specialty; // Only for doctors
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "doctor_patient_assignments",
+            joinColumns = @JoinColumn(name = "doctor_id"),
+            inverseJoinColumns = @JoinColumn(name = "patient_id")
+    )
+    private List<User> assignedPatients; // Only for doctors
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<EmotionRecord> emotionRecords;
 
@@ -71,6 +97,10 @@ public class User implements UserDetails {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        // Update last connected date on login/activity
+        if (lastConnectedDate == null || lastConnectedDate.isBefore(LocalDateTime.now().minusMinutes(5))) {
+            lastConnectedDate = LocalDateTime.now();
+        }
     }
 
     // Spring Security UserDetails implementation

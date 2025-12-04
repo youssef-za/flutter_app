@@ -2,6 +2,7 @@ package com.medical.emotionmonitoring.controller;
 
 import com.medical.emotionmonitoring.dto.UserResponse;
 import com.medical.emotionmonitoring.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,5 +60,135 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-}
 
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser() {
+        try {
+            // Get current authenticated user
+            org.springframework.security.core.Authentication authentication = 
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            String email = authentication.getName();
+            UserResponse response = userService.getUserByEmail(email);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateCurrentUser(@Valid @RequestBody com.medical.emotionmonitoring.dto.UpdateProfileRequest request) {
+        try {
+            org.springframework.security.core.Authentication authentication = 
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            String email = authentication.getName();
+            UserResponse response = userService.updateUserProfile(email, request);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse("An error occurred while updating profile"));
+        }
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody com.medical.emotionmonitoring.dto.ChangePasswordRequest request) {
+        try {
+            org.springframework.security.core.Authentication authentication = 
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            String email = authentication.getName();
+            userService.changePassword(email, request.getCurrentPassword(), request.getNewPassword());
+            return ResponseEntity.ok(new java.util.HashMap<String, String>() {{
+                put("message", "Password changed successfully");
+            }});
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse("An error occurred while changing password"));
+        }
+    }
+
+    @PostMapping("/doctors/{doctorId}/assign-patient/{patientId}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<?> assignPatientToDoctor(
+            @PathVariable Long doctorId,
+            @PathVariable Long patientId) {
+        try {
+            userService.assignPatientToDoctor(doctorId, patientId);
+            return ResponseEntity.ok(new java.util.HashMap<String, String>() {{
+                put("message", "Patient assigned successfully");
+            }});
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse("An error occurred while assigning patient"));
+        }
+    }
+
+    @DeleteMapping("/doctors/{doctorId}/unassign-patient/{patientId}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<?> unassignPatientFromDoctor(
+            @PathVariable Long doctorId,
+            @PathVariable Long patientId) {
+        try {
+            userService.unassignPatientFromDoctor(doctorId, patientId);
+            return ResponseEntity.ok(new java.util.HashMap<String, String>() {{
+                put("message", "Patient unassigned successfully");
+            }});
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse("An error occurred while unassigning patient"));
+        }
+    }
+
+    @PutMapping("/patients/{patientId}")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<?> updatePatientInfo(
+            @PathVariable Long patientId,
+            @Valid @RequestBody com.medical.emotionmonitoring.dto.UpdatePatientRequest request) {
+        try {
+            org.springframework.security.core.Authentication authentication = 
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            String email = authentication.getName();
+            com.medical.emotionmonitoring.dto.UserResponse currentUser = userService.getUserByEmail(email);
+            Long doctorId = currentUser.getId();
+            
+            com.medical.emotionmonitoring.dto.UserResponse response = 
+                    userService.updatePatientInfo(patientId, doctorId, request);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new com.medical.emotionmonitoring.dto.ErrorResponse("An error occurred while updating patient information"));
+        }
+    }
+}

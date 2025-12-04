@@ -56,12 +56,54 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emotion Monitoring'),
+        title: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            final isPatient = authProvider.currentUser?.role == 'PATIENT';
+            return Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    isPatient ? Icons.dashboard_rounded : Icons.medical_services_rounded,
+                    color: colorScheme.onPrimaryContainer,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Emotion Monitoring',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    if (authProvider.currentUser != null)
+                      Text(
+                        authProvider.currentUser!.fullName,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
             onPressed: () async {
               final authProvider =
                   Provider.of<AuthProvider>(context, listen: false);
@@ -73,31 +115,53 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _getTabs(),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0.0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              )),
+              child: child,
+            ),
+          );
+        },
+        child: IndexedStack(
+          key: ValueKey<int>(_currentIndex),
+          index: _currentIndex,
+          children: _getTabs(),
+        ),
       ),
       bottomNavigationBar: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final isPatient = authProvider.currentUser?.role == 'PATIENT';
-          return BottomNavigationBar(
-            currentIndex: _currentIndex,
-            onTap: (index) {
+          return NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
               setState(() {
                 _currentIndex = index;
               });
             },
-            items: [
-              BottomNavigationBarItem(
-                icon: Icon(isPatient ? Icons.dashboard : Icons.medical_services),
-                label: isPatient ? 'Dashboard' : 'Dashboard',
+            destinations: [
+              NavigationDestination(
+                icon: Icon(isPatient ? Icons.dashboard_outlined : Icons.medical_services_outlined),
+                selectedIcon: Icon(isPatient ? Icons.dashboard_rounded : Icons.medical_services_rounded),
+                label: 'Dashboard',
               ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.history),
+              const NavigationDestination(
+                icon: Icon(Icons.history_outlined),
+                selectedIcon: Icon(Icons.history_rounded),
                 label: 'History',
               ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.person),
+              const NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
                 label: 'Profile',
               ),
             ],

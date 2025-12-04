@@ -23,4 +23,11 @@ class AppRoutes {
   // Home Tabs (internal navigation)
   static const String historyTab = '/home/history';
   static const String profileTab = '/home/profile';
+  
+  // Profile routes
+  static const String editProfile = '/profile/edit';
+  static const String changePassword = '/profile/change-password';
+  
+  // Patient detail route (for doctors)
+  static const String patientDetail = '/patient/detail';
 }

@@ -9,6 +9,8 @@ class CustomButton extends StatelessWidget {
   final Color? textColor;
   final double? width;
   final double? height;
+  final ButtonStyle? style;
+  final bool isFilled;
 
   const CustomButton({
     super.key,
@@ -20,55 +22,95 @@ class CustomButton extends StatelessWidget {
     this.textColor,
     this.width,
     this.height,
+    this.style,
+    this.isFilled = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final button = ElevatedButton(
-      onPressed: isLoading ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary,
-        foregroundColor: textColor ?? Colors.white,
-        padding: EdgeInsets.symmetric(
-          vertical: height ?? 16,
-          horizontal: 24,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    Widget button;
+    
+    if (isFilled) {
+      button = FilledButton(
+        onPressed: isLoading ? null : onPressed,
+        style: style ?? FilledButton.styleFrom(
+          backgroundColor: backgroundColor ?? colorScheme.primary,
+          foregroundColor: textColor ?? colorScheme.onPrimary,
+          padding: EdgeInsets.symmetric(
+            vertical: height ?? 16,
+            horizontal: 24,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          minimumSize: width != null ? Size(width!, height ?? 48) : null,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+        child: _buildChild(context, colorScheme),
+      );
+    } else {
+      button = OutlinedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: style ?? OutlinedButton.styleFrom(
+          foregroundColor: textColor ?? colorScheme.primary,
+          padding: EdgeInsets.symmetric(
+            vertical: height ?? 16,
+            horizontal: 24,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          side: BorderSide(
+            color: backgroundColor ?? colorScheme.primary,
+            width: 2,
+          ),
+          minimumSize: width != null ? Size(width!, height ?? 48) : null,
         ),
-        minimumSize: width != null ? Size(width!, height ?? 48) : null,
-      ),
-      child: isLoading
-          ? SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  textColor ?? Colors.white,
-                ),
-              ),
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 20),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  text,
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
-    );
+        child: _buildChild(context, colorScheme),
+      );
+    }
 
     if (width != null) {
       return SizedBox(width: width, child: button);
     }
 
     return button;
+  }
+  
+  Widget _buildChild(BuildContext context, ColorScheme colorScheme) {
+    final theme = Theme.of(context);
+    
+    if (isLoading) {
+      return SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          valueColor: AlwaysStoppedAnimation<Color>(
+            textColor ?? (isFilled ? colorScheme.onPrimary : colorScheme.primary),
+          ),
+        ),
+      );
+    }
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          text,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: textColor ?? (isFilled ? colorScheme.onPrimary : colorScheme.primary),
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -458,6 +458,90 @@ class ApiService {
     return put<void>('/alerts/$alertId/read');
   }
 
+  // User Profile endpoints
+  Future<ApiResponse<Map<String, dynamic>>> getCurrentUser() async {
+    return get<Map<String, dynamic>>('/users/me');
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> updateProfile(String fullName, String email) async {
+    return put<Map<String, dynamic>>('/users/me', data: {
+      'fullName': fullName,
+      'email': email,
+    });
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> changePassword(String currentPassword, String newPassword) async {
+    return put<Map<String, dynamic>>('/users/me/password', data: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
+
+  // Emotion Statistics endpoints
+  Future<ApiResponse<Map<String, dynamic>>> getPatientStatistics(int patientId) async {
+    return get<Map<String, dynamic>>('/emotions/patient/$patientId/statistics');
+  }
+
+  // Patient Notes endpoints
+  Future<ApiResponse<Map<String, dynamic>>> createPatientNote(int patientId, String note) async {
+    return post<Map<String, dynamic>>('/patient-notes/patient/$patientId', data: {
+      'note': note,
+    });
+  }
+
+  Future<ApiResponse<List<dynamic>>> getPatientNotes(int patientId) async {
+    return get<List<dynamic>>('/patient-notes/patient/$patientId');
+  }
+
+  Future<ApiResponse<List<dynamic>>> getDoctorNotes(int doctorId) async {
+    return get<List<dynamic>>('/patient-notes/doctor/$doctorId');
+  }
+
+  Future<ApiResponse<Map<String, dynamic>>> updatePatientNote(int noteId, String note) async {
+    return put<Map<String, dynamic>>('/patient-notes/$noteId', data: {
+      'note': note,
+    });
+  }
+
+  Future<ApiResponse<void>> deletePatientNote(int noteId) async {
+    return delete<void>('/patient-notes/$noteId');
+  }
+
+  // Patient Tags endpoints
+  Future<ApiResponse<Map<String, dynamic>>> addPatientTag(int patientId, String tag) async {
+    return post<Map<String, dynamic>>('/patient-tags/patient/$patientId', data: {
+      'tag': tag,
+    });
+  }
+
+  Future<ApiResponse<List<dynamic>>> getPatientTags(int patientId) async {
+    return get<List<dynamic>>('/patient-tags/patient/$patientId');
+  }
+
+  Future<ApiResponse<void>> removePatientTag(int patientId, String tag) async {
+    return delete<void>('/patient-tags/patient/$patientId/tag/$tag');
+  }
+
+  Future<ApiResponse<void>> removePatientTagById(int tagId) async {
+    return delete<void>('/patient-tags/$tagId');
+  }
+
+  // Update Patient Info endpoint (for doctors)
+  Future<ApiResponse<Map<String, dynamic>>> updatePatientInfo(
+    int patientId,
+    String fullName,
+    String email, {
+    int? age,
+    String? gender,
+  }) async {
+    return put<Map<String, dynamic>>('/users/patients/$patientId', data: {
+      'fullName': fullName,
+      'email': email,
+      if (age != null) 'age': age,
+      if (gender != null) 'gender': gender,
+    });
+  }
+
   // ==================== Legacy Methods (for backward compatibility) ====================
 
   /// Legacy method - returns raw Dio Response

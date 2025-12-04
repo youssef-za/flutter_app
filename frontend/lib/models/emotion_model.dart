@@ -16,11 +16,39 @@ class EmotionModel {
   });
 
   factory EmotionModel.fromJson(Map<String, dynamic> json) {
+    // Handle emotionType - could be String or enum object
+    String emotionTypeStr;
+    if (json['emotionType'] is String) {
+      emotionTypeStr = json['emotionType'] as String;
+    } else {
+      // If it's an object, try to get the name
+      emotionTypeStr = json['emotionType']?.toString() ?? 'NEUTRAL';
+    }
+    
+    // Handle timestamp - could be String or already DateTime
+    DateTime timestamp;
+    if (json['timestamp'] is String) {
+      timestamp = DateTime.parse(json['timestamp'] as String);
+    } else if (json['timestamp'] is Map) {
+      // Handle LocalDateTime from Java (if serialized as object)
+      final timestampMap = json['timestamp'] as Map<String, dynamic>;
+      timestamp = DateTime(
+        timestampMap['year'] as int? ?? DateTime.now().year,
+        timestampMap['monthValue'] as int? ?? DateTime.now().month,
+        timestampMap['dayOfMonth'] as int? ?? DateTime.now().day,
+        timestampMap['hour'] as int? ?? 0,
+        timestampMap['minute'] as int? ?? 0,
+        timestampMap['second'] as int? ?? 0,
+      );
+    } else {
+      timestamp = DateTime.now();
+    }
+    
     return EmotionModel(
       id: json['id'] as int?,
-      emotionType: json['emotionType'] as String,
-      confidence: (json['confidence'] as num).toDouble(),
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      emotionType: emotionTypeStr,
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+      timestamp: timestamp,
       patientId: json['patientId'] as int?,
       patientName: json['patientName'] as String?,
     );

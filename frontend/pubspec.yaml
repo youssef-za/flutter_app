@@ -47,6 +47,11 @@ dependencies:
   # Form Validation
   email_validator: ^2.1.17
 
+  # PDF Generation
+  pdf: ^3.10.7
+  printing: ^5.12.0
+  path_provider: ^2.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

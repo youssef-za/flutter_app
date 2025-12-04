@@ -8,6 +8,12 @@ import '../../../models/emotion_model.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_state_widget.dart';
+import '../../../widgets/emotion_statistics_widget.dart';
+import '../../../widgets/weekly_statistics_widget.dart';
+import '../../../widgets/stress_indicator_widget.dart';
+import '../../../widgets/tips_widget.dart';
+import '../../../widgets/modern_card.dart';
+import '../../../widgets/animated_fade_in.dart';
 import '../../../screens/camera/camera_screen.dart';
 import '../../../services/navigation_service.dart';
 import '../../../config/app_routes.dart';
@@ -93,13 +99,34 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
             _buildActionButtons(colorScheme),
             const SizedBox(height: 24),
 
-            // Quick Stats (optional)
+            // Emotion Statistics
             Consumer<EmotionProvider>(
               builder: (context, emotionProvider, _) {
                 if (emotionProvider.emotions.isNotEmpty) {
-                  return _buildQuickStats(emotionProvider.emotions, colorScheme);
+                  return AnimatedFadeIn(
+                    child: Column(
+                      children: [
+                        EmotionStatisticsWidget(emotions: emotionProvider.emotions),
+                        const SizedBox(height: 20),
+                        WeeklyStatisticsWidget(emotions: emotionProvider.emotions),
+                        const SizedBox(height: 20),
+                        StressIndicatorWidget(emotions: emotionProvider.emotions),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  );
                 }
                 return const SizedBox.shrink();
+              },
+            ),
+            const SizedBox(height: 20),
+            
+            // Tips of the Day
+            Consumer<EmotionProvider>(
+              builder: (context, emotionProvider, _) {
+                return AnimatedFadeIn(
+                  child: TipsWidget(emotions: emotionProvider.emotions),
+                );
               },
             ),
           ],
@@ -140,12 +167,10 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
   Widget _buildCurrentEmotionCard(EmotionModel emotion, ColorScheme colorScheme) {
     final emotionColor = _getEmotionColor(emotion.emotionType);
     final emotionIcon = _getEmotionIcon(emotion.emotionType);
+    final theme = Theme.of(context);
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+    return ModernCard(
+      padding: const EdgeInsets.all(28.0),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
@@ -153,7 +178,7 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              emotionColor.withOpacity(0.1),
+              emotionColor.withOpacity(0.15),
               emotionColor.withOpacity(0.05),
             ],
           ),
@@ -163,59 +188,60 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
           children: [
             // Emotion Icon
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: emotionColor.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 emotionIcon,
-                size: 64,
+                size: 72,
                 color: emotionColor,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // Emotion Type
             Text(
               emotion.emotionType,
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
+              style: theme.textTheme.headlineMedium?.copyWith(
                 color: emotionColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Confidence
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: emotionColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${(emotion.confidence * 100).toStringAsFixed(1)}% Confidence',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: emotionColor,
-                ),
+                fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
+
+            // Confidence
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: emotionColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                '${(emotion.confidence * 100).toStringAsFixed(1)}% Confidence',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: emotionColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // Timestamp
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 6),
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 16,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
                 Text(
                   DateFormat('MMM dd, yyyy • HH:mm').format(emotion.timestamp),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -227,40 +253,40 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
   }
 
   Widget _buildNoEmotionCard(ColorScheme colorScheme) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          children: [
-            Icon(
-              Icons.sentiment_neutral,
+    final theme = Theme.of(context);
+    return ModernCard(
+      padding: const EdgeInsets.all(40.0),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.sentiment_neutral_rounded,
               size: 64,
-              color: Colors.grey[400],
+              color: colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
-            Text(
-              'No emotion detected yet',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No emotion detected yet',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: colorScheme.onSurface,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Capture your first emotion to get started',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Capture your first emotion to get started',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
-          ],
-        ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -277,24 +303,17 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
               onPressed: emotionProvider.isLoading ? null : _captureEmotionFromCamera,
               isLoading: emotionProvider.isLoading,
               icon: Icons.camera_alt_rounded,
-              backgroundColor: colorScheme.primary,
             );
           },
         ),
         const SizedBox(height: 12),
 
         // View History Button
-        OutlinedButton.icon(
+        CustomButton(
+          text: 'View Emotion History',
           onPressed: _navigateToHistory,
-          icon: const Icon(Icons.history_rounded),
-          label: const Text('View Emotion History'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            side: BorderSide(color: colorScheme.primary, width: 2),
-          ),
+          icon: Icons.history_rounded,
+          isFilled: false,
         ),
       ],
     );
@@ -304,87 +323,81 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
     final totalEmotions = emotions.length;
     final happyCount = emotions.where((e) => e.emotionType == 'HAPPY').length;
     final sadCount = emotions.where((e) => e.emotionType == 'SAD').length;
+    final theme = Theme.of(context);
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Quick Stats',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+    return ModernCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Quick Stats',
+            style: theme.textTheme.titleLarge,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatItem(
+                  'Total',
+                  totalEmotions.toString(),
+                  Icons.emoji_emotions_rounded,
+                  colorScheme.primary,
+                  theme,
+                  colorScheme,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    'Total',
-                    totalEmotions.toString(),
-                    Icons.emoji_emotions,
-                    colorScheme.primary,
-                  ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatItem(
+                  'Happy',
+                  happyCount.toString(),
+                  Icons.sentiment_very_satisfied_rounded,
+                  Colors.green,
+                  theme,
+                  colorScheme,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatItem(
-                    'Happy',
-                    happyCount.toString(),
-                    Icons.sentiment_very_satisfied,
-                    Colors.green,
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatItem(
+                  'Sad',
+                  sadCount.toString(),
+                  Icons.sentiment_very_dissatisfied_rounded,
+                  Colors.blue,
+                  theme,
+                  colorScheme,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatItem(
-                    'Sad',
-                    sadCount.toString(),
-                    Icons.sentiment_very_dissatisfied,
-                    Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(String label, String value, IconData icon, Color color, ThemeData theme, ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 12),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+            style: theme.textTheme.headlineSmall?.copyWith(
               color: color,
+              fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],

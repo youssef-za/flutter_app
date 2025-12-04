@@ -234,6 +234,77 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Update user profile
+  Future<bool> updateProfile(String fullName, String email) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final apiResponse = await _apiService.updateProfile(fullName, email);
+      
+      if (apiResponse.isSuccess && apiResponse.data != null) {
+        // Update current user with new data
+        final userData = apiResponse.data as Map<String, dynamic>;
+        _currentUser = UserModel.fromJson(userData);
+        
+        // Save updated user data
+        await _secureStorage.saveUser(_currentUser!.toJson());
+        
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = apiResponse.errorMessage ?? 'Failed to update profile';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'Failed to update profile. Please try again.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Change password
+  Future<bool> changePassword(String currentPassword, String newPassword) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final apiResponse = await _apiService.changePassword(currentPassword, newPassword);
+      
+      if (apiResponse.isSuccess) {
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = apiResponse.errorMessage ?? 'Failed to change password';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'Failed to change password. Please try again.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Extract error message from API response
   String? _extractErrorMessage(ApiResponse response) {
     if (response.error != null) {
