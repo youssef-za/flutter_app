@@ -52,3 +52,4 @@ echo ""
 echo "=== Démarrage de l'application ==="
 $MAVEN_CMD spring-boot:run
 
+

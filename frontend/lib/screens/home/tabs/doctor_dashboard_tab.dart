@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -27,32 +28,65 @@ class DoctorDashboardTab extends StatefulWidget {
   State<DoctorDashboardTab> createState() => _DoctorDashboardTabState();
 }
 
-class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
+class _DoctorDashboardTabState extends State<DoctorDashboardTab> 
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   FilterPeriod _selectedFilter = FilterPeriod.all;
   String? _sortBy = 'recent';
   List<UserModel> _filteredPatients = [];
   String _searchQuery = '';
+  
+  // Flags pour éviter les chargements multiples
+  bool _isLoading = false;
+  bool _hasInitialized = false;
+  Timer? _searchDebounce;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
+      if (!_hasInitialized && mounted) {
+        _hasInitialized = true;
+        _loadData();
+        _startRealTimePolling();
+      }
     });
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
+    _stopRealTimePolling();
     super.dispose();
   }
 
+  void _startRealTimePolling() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.currentUser != null && authProvider.currentUser!.isDoctor) {
+      final alertProvider = Provider.of<AlertProvider>(context, listen: false);
+      alertProvider.startRealTimePolling(authProvider.currentUser!.id);
+    }
+  }
+
+  void _stopRealTimePolling() {
+    final alertProvider = Provider.of<AlertProvider>(context, listen: false);
+    alertProvider.stopPolling();
+  }
+
   void _onSearchChanged() {
-    setState(() {
-      _searchQuery = _searchController.text.toLowerCase();
-      _applyFilters();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = _searchController.text.toLowerCase();
+        });
+        _applyFilters();
+      }
     });
   }
 
@@ -151,6 +185,9 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
   }
 
   Future<void> _loadData() async {
+    if (_isLoading) return; // Éviter les chargements simultanés
+    
+    _isLoading = true;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     if (authProvider.currentUser != null) {
       final doctorId = authProvider.currentUser!.id;
@@ -158,18 +195,33 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
       final patientProvider = Provider.of<PatientProvider>(context, listen: false);
       final alertProvider = Provider.of<AlertProvider>(context, listen: false);
       
-      await Future.wait([
-        patientProvider.loadPatients(),
-        alertProvider.loadAlertsByDoctorId(doctorId),
-        alertProvider.loadUnreadAlertsByDoctorId(doctorId),
-      ]);
-      
-      _applyFilters();
+      try {
+        await Future.wait([
+          patientProvider.loadPatients(),
+          alertProvider.loadAlertsByDoctorId(doctorId),
+          alertProvider.loadUnreadAlertsByDoctorId(doctorId),
+        ]);
+        
+        if (mounted) {
+          _applyFilters();
+          
+          // Ensure real-time polling is active
+          if (!alertProvider.isPolling) {
+            alertProvider.startRealTimePolling(doctorId);
+          }
+        }
+      } finally {
+        if (mounted) {
+          _isLoading = false;
+        }
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Nécessaire avec AutomaticKeepAliveClientMixin
+    
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -759,46 +811,34 @@ class _DoctorDashboardTabState extends State<DoctorDashboardTab> {
               ),
             ),
           ],
-          // Notes preview
+          // Notes preview - Utiliser Selector pour éviter les rebuilds
           const SizedBox(height: 12),
-          Consumer<PatientNoteProvider>(
-            builder: (context, noteProvider, _) {
-              return FutureBuilder(
-                future: _loadPatientNotes(patient.id, noteProvider),
-                builder: (context, snapshot) {
-                  final notes = noteProvider.notes
-                      .where((n) => n.patientId == patient.id)
-                      .toList();
-                  
-                  if (notes.isNotEmpty) {
-                    return Row(
-                      children: [
-                        Icon(Icons.note, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${notes.length} ${notes.length == 1 ? 'note' : 'notes'}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              );
+          Selector<PatientNoteProvider, int>(
+            selector: (_, provider) {
+              return provider.notes.where((n) => n.patientId == patient.id).length;
+            },
+            builder: (context, notesCount, _) {
+              if (notesCount > 0) {
+                return Row(
+                  children: [
+                    Icon(Icons.note, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$notesCount ${notesCount == 1 ? 'note' : 'notes'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
             },
           ),
         ],
       ),
     );
-  }
-
-  Future<void> _loadPatientNotes(int patientId, PatientNoteProvider noteProvider) async {
-    if (noteProvider.notes.where((n) => n.patientId == patientId).isEmpty) {
-      await noteProvider.loadNotesByPatientId(patientId);
-    }
   }
 
   Widget _buildEmotionBadge(EmotionModel emotion) {

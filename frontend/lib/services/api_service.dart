@@ -463,10 +463,17 @@ class ApiService {
     return get<Map<String, dynamic>>('/users/me');
   }
 
-  Future<ApiResponse<Map<String, dynamic>>> updateProfile(String fullName, String email) async {
+  Future<ApiResponse<Map<String, dynamic>>> updateProfile(
+    String fullName,
+    String email, {
+    int? age,
+    String? gender,
+  }) async {
     return put<Map<String, dynamic>>('/users/me', data: {
       'fullName': fullName,
       'email': email,
+      if (age != null) 'age': age,
+      if (gender != null) 'gender': gender,
     });
   }
 
@@ -527,18 +534,17 @@ class ApiService {
   }
 
   // Update Patient Info endpoint (for doctors)
+  // Note: Doctors can only update name and email, not age and gender
+  // Age and gender can only be modified by the patient themselves
   Future<ApiResponse<Map<String, dynamic>>> updatePatientInfo(
     int patientId,
     String fullName,
-    String email, {
-    int? age,
-    String? gender,
-  }) async {
+    String email,
+  ) async {
     return put<Map<String, dynamic>>('/users/patients/$patientId', data: {
       'fullName': fullName,
       'email': email,
-      if (age != null) 'age': age,
-      if (gender != null) 'gender': gender,
+      // Age and gender are intentionally excluded - doctors cannot modify these fields
     });
   }
 

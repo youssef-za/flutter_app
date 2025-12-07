@@ -12,3 +12,4 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttempt, Long
     void deleteByEmail(String email);
 }
 
+

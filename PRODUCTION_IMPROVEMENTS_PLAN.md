@@ -296,3 +296,4 @@ Ce document détaille toutes les améliorations à implémenter pour rendre l'ap
 **Dernière mise à jour** : Phase de planification  
 **Statut global** : 🟡 En cours d'implémentation
 
+

@@ -63,3 +63,4 @@ Write-Host "Appuyez sur Ctrl+C pour arrêter`n" -ForegroundColor Yellow
 Write-Host "=== Démarrage de l'application ===" -ForegroundColor Green
 & $mavenCmd spring-boot:run
 
+

@@ -44,7 +44,10 @@ class _PatientDashboardTabState extends State<PatientDashboardTab> {
   }
 
   Future<void> _captureEmotionFromCamera() async {
-    final result = await NavigationService.toEmotionCapture();
+    // Open pre-capture questionnaire first
+    final result = await NavigationService.toPreCaptureQuestionnaire();
+    // The questionnaire will navigate to camera screen after completion
+    // Reload emotions when returning from camera
     if (result == true && mounted) {
       await _loadCurrentEmotion();
     }

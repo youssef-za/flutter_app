@@ -45,12 +45,19 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     final tagProvider = Provider.of<PatientTagProvider>(context, listen: false);
     final statisticsProvider = Provider.of<EmotionStatisticsProvider>(context, listen: false);
     
-    await Future.wait([
+    // Charger seulement si les données ne sont pas déjà en cache
+    final futures = <Future>[
       emotionProvider.loadEmotionHistory(widget.patient.id),
-      noteProvider.loadNotesByPatientId(widget.patient.id),
       tagProvider.loadTagsByPatientId(widget.patient.id),
       statisticsProvider.loadStatistics(widget.patient.id),
-    ]);
+    ];
+    
+    // Charger les notes seulement si elles ne sont pas déjà chargées
+    if (!noteProvider.hasNotesForPatient(widget.patient.id)) {
+      futures.add(noteProvider.loadNotesByPatientId(widget.patient.id));
+    }
+    
+    await Future.wait(futures);
   }
 
   @override
@@ -190,99 +197,120 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        Consumer<PatientNoteProvider>(
-          builder: (context, noteProvider, _) {
-            if (noteProvider.isLoading) {
-              return const LoadingWidget(message: 'Loading notes...');
-            }
+        // Utiliser Selector pour éviter les rebuilds inutiles
+        // Sélectionner seulement isLoading et le nombre de notes pour ce patient
+        Selector<PatientNoteProvider, bool>(
+          selector: (_, provider) => provider.isLoading,
+          builder: (context, isLoading, _) {
+            // Utiliser un Consumer séparé pour les notes (mais optimisé)
+            return Consumer<PatientNoteProvider>(
+              builder: (context, noteProvider, _) {
+                if (isLoading) {
+                  return const LoadingWidget(message: 'Loading notes...');
+                }
 
-            final patientNotes = noteProvider.notes
-                .where((n) => n.patientId == widget.patient.id)
-                .toList();
+                final patientNotes = noteProvider.notes
+                    .where((n) => n.patientId == widget.patient.id)
+                    .toList();
 
-            if (patientNotes.isEmpty) {
-              return ModernCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      Icon(Icons.note_outlined, size: 48, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No notes yet',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return Column(
-              children: patientNotes.map((note) {
-                return ModernCard(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                if (patientNotes.isEmpty) {
+                  return ModernCard(
+                    key: const ValueKey('empty_notes'),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
                         children: [
+                          Icon(Icons.note_outlined, size: 48, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
                           Text(
-                            note.doctorName,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            DateFormat('MMM dd, yyyy HH:mm').format(note.createdAt),
+                            'No notes yet',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 16,
                               color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        note.note,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      Consumer<AuthProvider>(
-                        builder: (context, authProvider, _) {
-                          if (authProvider.currentUser?.id == note.doctorId) {
-                            return Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton(
-                                  onPressed: () => _showEditNoteDialog(note),
-                                  child: const Text('Edit'),
-                                ),
-                                TextButton(
-                                  onPressed: () => _deleteNote(note.id),
-                                  child: Text(
-                                    'Delete',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                    ],
-                  ),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: patientNotes.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final note = patientNotes[index];
+                    return _buildNoteCard(note);
+                  },
                 );
-              }).toList(),
+              },
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildNoteCard(PatientNoteModel note) {
+    return ModernCard(
+      key: ValueKey('note_${note.id}'), // Clé stable pour éviter les reconstructions
+      margin: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                note.doctorName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                DateFormat('MMM dd, yyyy HH:mm').format(note.createdAt),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            note.note,
+            style: const TextStyle(fontSize: 14),
+          ),
+          // Utiliser Selector au lieu de Consumer pour éviter les rebuilds inutiles
+          Selector<AuthProvider, int?>(
+            selector: (_, authProvider) => authProvider.currentUser?.id,
+            builder: (context, currentUserId, _) {
+              if (currentUserId == note.doctorId) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => _showEditNoteDialog(note),
+                      child: const Text('Edit'),
+                    ),
+                    TextButton(
+                      onPressed: () => _deleteNote(note.id),
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -428,9 +456,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       if (emotionProvider.emotions.isEmpty) {
         await emotionProvider.loadEmotionHistory(widget.patient.id);
       }
-      if (noteProvider.notes.where((n) => n.patientId == widget.patient.id).isEmpty) {
-        await noteProvider.loadNotesByPatientId(widget.patient.id);
-      }
+      // Forcer le rechargement des notes pour le PDF (forceRefresh = true)
+      await noteProvider.loadNotesByPatientId(widget.patient.id, forceRefresh: true);
       if (statisticsProvider.statistics == null) {
         await statisticsProvider.loadStatistics(widget.patient.id);
       }
@@ -779,10 +806,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   void _showEditPatientDialog() {
     final nameController = TextEditingController(text: widget.patient.fullName);
     final emailController = TextEditingController(text: widget.patient.email);
-    final ageController = TextEditingController(
-      text: widget.patient.age?.toString() ?? '',
-    );
-    String? selectedGender = widget.patient.gender;
 
     showDialog(
       context: context,
@@ -809,30 +832,29 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: ageController,
-                decoration: const InputDecoration(
-                  labelText: 'Age',
-                  border: OutlineInputBorder(),
+              // Note: Age and Gender are not editable by doctors
+              // These fields can only be modified by the patient themselves
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedGender,
-                decoration: const InputDecoration(
-                  labelText: 'Gender',
-                  border: OutlineInputBorder(),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Note: Age and gender can only be modified by the patient.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'MALE', child: Text('Male')),
-                  DropdownMenuItem(value: 'FEMALE', child: Text('Female')),
-                  DropdownMenuItem(value: 'OTHER', child: Text('Other')),
-                  DropdownMenuItem(value: 'PREFER_NOT_TO_SAY', child: Text('Prefer not to say')),
-                ],
-                onChanged: (value) {
-                  selectedGender = value;
-                },
               ),
             ],
           ),
@@ -846,16 +868,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             onPressed: () async {
               if (nameController.text.isNotEmpty && emailController.text.isNotEmpty) {
                 final apiService = ApiService();
-                final age = ageController.text.isNotEmpty
-                    ? int.tryParse(ageController.text)
-                    : null;
                 
+                // Doctors cannot modify age and gender
                 final response = await apiService.updatePatientInfo(
                   widget.patient.id,
                   nameController.text.trim(),
                   emailController.text.trim(),
-                  age: age,
-                  gender: selectedGender,
                 );
                 
                 if (response.statusCode == 200 && mounted) {

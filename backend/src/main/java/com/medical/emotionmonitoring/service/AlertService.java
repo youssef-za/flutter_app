@@ -24,9 +24,8 @@ public class AlertService {
         User patient = userRepository.findById(patientId)
                 .orElseThrow(() -> new RuntimeException("Patient not found"));
 
-        // Find an available doctor (first doctor in the system)
-        // In a real system, you might have a doctor-patient assignment table
-        User doctor = findAvailableDoctor()
+        // Find the doctor assigned to this patient, or an available doctor
+        User doctor = findDoctorForPatient(patient)
                 .orElseThrow(() -> new RuntimeException(
                         "No doctor available in the system. Please create a doctor user first."));
 
@@ -41,7 +40,31 @@ public class AlertService {
     }
 
     /**
-     * Find an available doctor
+     * Find the doctor assigned to a patient, or an available doctor if none is assigned
+     */
+    private Optional<User> findDoctorForPatient(User patient) {
+        // First, try to find a doctor assigned to this patient
+        List<User> doctors = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.DOCTOR)
+                .toList();
+
+        for (User doctor : doctors) {
+            if (doctor.getAssignedPatients() != null 
+                    && doctor.getAssignedPatients().contains(patient)) {
+                return Optional.of(doctor);
+            }
+        }
+
+        // If no assigned doctor found, return the first available doctor
+        if (doctors.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(doctors.get(0));
+    }
+
+    /**
+     * Find an available doctor (for backward compatibility)
      * In a production system, this would use a doctor-patient assignment table
      */
     private Optional<User> findAvailableDoctor() {

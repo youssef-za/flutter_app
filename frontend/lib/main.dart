@@ -11,8 +11,10 @@ import 'providers/theme_provider.dart';
 import 'providers/patient_note_provider.dart';
 import 'providers/emotion_statistics_provider.dart';
 import 'providers/patient_tag_provider.dart';
+import 'providers/pre_capture_provider.dart';
 import 'services/navigation_service.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/questionnaire/pre_capture_questionnaire_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/camera/camera_screen.dart';
@@ -41,6 +43,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PatientNoteProvider()),
         ChangeNotifierProvider(create: (_) => EmotionStatisticsProvider()),
         ChangeNotifierProvider(create: (_) => PatientTagProvider()),
+        ChangeNotifierProvider(create: (_) => PreCaptureProvider()),
       ],
       child: MaterialApp(
         title: 'Emotion Monitoring',
@@ -65,6 +68,7 @@ class MyApp extends StatelessWidget {
       AppRoutes.login: (context) => const LoginScreen(),
       AppRoutes.register: (context) => const RegisterScreen(),
       AppRoutes.home: (context) => const HomeScreen(),
+      AppRoutes.preCaptureQuestionnaire: (context) => const PreCaptureQuestionnaireScreen(),
       AppRoutes.emotionCapture: (context) => const CameraScreen(),
       AppRoutes.editProfile: (context) => const EditProfileScreen(),
       AppRoutes.changePassword: (context) => const ChangePasswordScreen(),

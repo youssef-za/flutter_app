@@ -191,3 +191,4 @@ Complete UI overhaul to a minimalist, modern design inspired by Calm, Apple Heal
 - Focus on mental health app aesthetics
 - Clean, calming, professional appearance
 
+

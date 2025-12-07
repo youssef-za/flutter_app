@@ -19,3 +19,4 @@ public class EmotionStatisticsResponse {
     private Integer stressLevel; // 0-100 based on SAD/ANGRY/FEAR emotions
 }
 
+

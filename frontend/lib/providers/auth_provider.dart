@@ -235,13 +235,23 @@ class AuthProvider with ChangeNotifier {
   }
 
   /// Update user profile
-  Future<bool> updateProfile(String fullName, String email) async {
+  Future<bool> updateProfile(
+    String fullName,
+    String email, {
+    int? age,
+    String? gender,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final apiResponse = await _apiService.updateProfile(fullName, email);
+      final apiResponse = await _apiService.updateProfile(
+        fullName,
+        email,
+        age: age,
+        gender: gender,
+      );
       
       if (apiResponse.isSuccess && apiResponse.data != null) {
         // Update current user with new data

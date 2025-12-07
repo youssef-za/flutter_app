@@ -20,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late int _currentIndex;
+  List<Widget>? _cachedTabs; // Cache des tabs pour éviter les recréations
   
   @override
   void initState() {
@@ -34,24 +35,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Widget> _getTabs() {
+    // Retourner les tabs en cache si disponibles
+    if (_cachedTabs != null) {
+      return _cachedTabs!;
+    }
+    
     // Check if user is patient or doctor
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isPatient = authProvider.currentUser?.role == 'PATIENT';
 
-    if (isPatient) {
-      return [
-        const PatientDashboardTab(),
-        const HistoryTab(),
-        const ProfileTab(),
-      ];
-    } else {
-      // Doctor view
-      return [
-        const DoctorDashboardTab(),
-        const HistoryTab(),
-        const ProfileTab(),
-      ];
-    }
+    _cachedTabs = isPatient
+        ? [
+            const PatientDashboardTab(),
+            const HistoryTab(),
+            const ProfileTab(),
+          ]
+        : [
+            const DoctorDashboardTab(),
+            const HistoryTab(),
+            const ProfileTab(),
+          ];
+    
+    return _cachedTabs!;
+  }
+  
+  // Invalider le cache si nécessaire (par exemple, après logout/login)
+  void _invalidateTabsCache() {
+    _cachedTabs = null;
   }
 
   @override

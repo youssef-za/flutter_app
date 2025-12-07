@@ -163,3 +163,4 @@ Si vous souhaitez utiliser une autre API de détection d'émotions, vous pouvez 
 
 **Recommandation** : Pour la détection d'émotions faciales, considérez utiliser un modèle spécialisé en vision comme ceux de la catégorie "image-classification" sur Hugging Face.
 
+

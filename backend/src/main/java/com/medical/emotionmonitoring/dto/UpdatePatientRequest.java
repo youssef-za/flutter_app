@@ -24,3 +24,4 @@ public class UpdatePatientRequest {
     private String gender; // MALE, FEMALE, OTHER, PREFER_NOT_TO_SAY
 }
 
+

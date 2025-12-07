@@ -59,6 +59,6 @@ flutter run
 - Configuration : `backend/src/main/resources/application.properties`
 
 ### Frontend
-- URL backend : `http://localhost:8080/api`
+- URL backend : `http://localhost:8080/ac
 - Configuration : `frontend/lib/config/app_config.dart`
 

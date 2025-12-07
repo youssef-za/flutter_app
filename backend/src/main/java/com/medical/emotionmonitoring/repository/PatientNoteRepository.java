@@ -13,3 +13,4 @@ public interface PatientNoteRepository extends JpaRepository<PatientNote, Long> 
     List<PatientNote> findByPatientIdAndDoctorIdOrderByCreatedAtDesc(Long patientId, Long doctorId);
 }
 
+

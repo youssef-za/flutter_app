@@ -168,3 +168,4 @@ Utiliser les couleurs du thème dynamique :
 
 **Statut** : ✅ Backend terminé, Frontend base terminée, UI améliorations en cours
 
+

@@ -15,3 +15,4 @@ public interface PatientTagRepository extends JpaRepository<PatientTag, Long> {
     void deleteByPatientIdAndDoctorIdAndTag(Long patientId, Long doctorId, String tag);
 }
 
+

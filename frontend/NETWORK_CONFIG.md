@@ -107,3 +107,4 @@ Si vous devez changer l'URL de base :
 2. Augmentez les timeouts dans `app_config.dart` si nécessaire
 3. Vérifiez la connexion réseau
 
+

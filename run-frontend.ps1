@@ -54,3 +54,4 @@ Write-Host "Press Ctrl+C to stop`n" -ForegroundColor Yellow
 # Run Flutter app
 flutter run
 
+

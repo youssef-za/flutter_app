@@ -45,7 +45,10 @@ public class EmotionService {
 
         Emotion savedEmotion = emotionRepository.save(emotion);
 
-        // Check for 3 consecutive SAD emotions and trigger alert
+        // Create alert for every detected emotion
+        createEmotionAlert(patientId, savedEmotion);
+
+        // Check for 3 consecutive SAD emotions and trigger alert (additional alert)
         checkAndTriggerSadAlert(patientId);
 
         return mapToResponse(savedEmotion);
@@ -75,13 +78,74 @@ public class EmotionService {
 
         Emotion savedEmotion = emotionRepository.save(emotion);
 
-        // Check for 3 consecutive SAD emotions and trigger alert
+        // Create alert for every detected emotion
+        createEmotionAlert(patientId, savedEmotion);
+
+        // Check for 3 consecutive SAD emotions and trigger alert (additional alert)
         checkAndTriggerSadAlert(patientId);
 
         log.info("Emotion detected from image for patient {}: {} with confidence {}", 
                 patientId, emotionType, confidence);
 
         return mapToResponse(savedEmotion);
+    }
+
+    /**
+     * Create an alert for every detected emotion in real-time
+     * Prevents duplicate alerts within a 30-second window for the same patient to avoid spam
+     * This ensures real-time notification while preventing excessive alerts
+     */
+    private void createEmotionAlert(Long patientId, Emotion emotion) {
+        try {
+            log.info("🔔 Attempting to create alert for patient {} - emotion: {}", patientId, emotion.getEmotionType());
+            
+            // Check if an alert was already created recently (within last 30 seconds) to avoid spam
+            // Reduced from 5 minutes to 30 seconds for real-time notifications
+            List<Alert> recentAlerts = alertService.getAlertsByPatientId(patientId);
+            LocalDateTime thirtySecondsAgo = LocalDateTime.now().minusSeconds(30);
+            
+            boolean recentAlertExists = recentAlerts.stream()
+                    .anyMatch(alert -> alert.getCreatedAt().isAfter(thirtySecondsAgo) 
+                            && alert.getMessage().contains("New emotion detected")
+                            && alert.getMessage().contains(emotion.getEmotionType().toString()));
+
+            if (recentAlertExists) {
+                log.debug("⚠️ Alert already exists for patient {} within the last 30 seconds for emotion {}, skipping duplicate alert", 
+                        patientId, emotion.getEmotionType());
+                return;
+            }
+
+            User patient = userRepository.findById(patientId)
+                    .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + patientId));
+
+            String emotionTypeName = emotion.getEmotionType().toString();
+            String confidencePercent = String.format("%.1f%%", emotion.getConfidence() * 100);
+            
+            String message = String.format(
+                    "New emotion detected: Patient %s has recorded a %s emotion with %s confidence.",
+                    patient.getFullName(),
+                    emotionTypeName,
+                    confidencePercent
+            );
+
+            log.info("📤 Creating alert with message: {}", message);
+            Alert createdAlert = alertService.createAlert(patientId, message);
+            log.info("✅ Real-time alert CREATED SUCCESSFULLY! Alert ID: {} for patient {} - emotion: {} (confidence: {})", 
+                    createdAlert.getId(), patientId, emotionTypeName, confidencePercent);
+        } catch (EntityNotFoundException e) {
+            log.error("❌ Entity not found while creating alert for patient {}: {}", patientId, e.getMessage());
+            // Don't throw exception - alert creation failure shouldn't break emotion creation
+        } catch (RuntimeException e) {
+            log.error("❌ Runtime error while creating alert for patient {}: {}", patientId, e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("No doctor available")) {
+                log.warn("⚠️ WARNING: No doctor available in the system! Please create a doctor user first.");
+            }
+            // Don't throw exception - alert creation failure shouldn't break emotion creation
+        } catch (Exception e) {
+            log.error("❌ Unexpected error while creating alert for patient {}: {} - Stack trace: {}", 
+                    patientId, e.getMessage(), e);
+            // Don't throw exception - alert creation failure shouldn't break emotion creation
+        }
     }
 
     /**

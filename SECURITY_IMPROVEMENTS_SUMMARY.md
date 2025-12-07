@@ -109,3 +109,4 @@ security.login.lockout-duration-minutes=30
 **Statut** : ✅ 2/3 fonctionnalités de sécurité implémentées  
 **Prochaine étape** : Implémenter le système de refresh token
 
+

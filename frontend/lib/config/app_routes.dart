@@ -17,6 +17,7 @@ class AppRoutes {
   static const String doctorDashboard = '/home/doctor-dashboard';
   
   // Emotion
+  static const String preCaptureQuestionnaire = '/questionnaire/pre-capture';
   static const String emotionCapture = '/emotion/capture';
   static const String emotionHistory = '/emotion/history';
   

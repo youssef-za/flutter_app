@@ -363,3 +363,4 @@ GROUP BY emotion_type;
 **Version**: 1.0.0
 **Database**: MySQL 8.0
 
+

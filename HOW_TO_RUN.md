@@ -234,3 +234,4 @@ Started EmotionMonitoringApplication in X.XXX seconds
 - Frontend Navigation: `frontend/NAVIGATION_SYSTEM.md`
 - API Testing: `backend/POSTMAN_REGISTER_API.md`
 
+

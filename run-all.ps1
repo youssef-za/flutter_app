@@ -22,3 +22,4 @@ Write-Host "Frontend: Will launch on your device/emulator" -ForegroundColor Yell
 Write-Host "`nPress any key to exit this window (applications will continue running)..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
+

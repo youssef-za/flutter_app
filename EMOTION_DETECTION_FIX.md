@@ -157,3 +157,4 @@ Pour diagnostiquer le problème :
 
 **Note** : Le modèle `trpakov/vit-face-expression` peut nécessiter un temps de chargement au premier appel (cold start). Les appels suivants seront plus rapides.
 
+

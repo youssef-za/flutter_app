@@ -86,6 +86,11 @@ class NavigationService {
     return navigateTo(AppRoutes.doctorDashboard);
   }
 
+  /// Navigate to Pre-Capture Questionnaire Screen
+  static Future<dynamic>? toPreCaptureQuestionnaire() {
+    return navigateTo(AppRoutes.preCaptureQuestionnaire);
+  }
+
   /// Navigate to Emotion Capture Screen
   static Future<dynamic>? toEmotionCapture() {
     return navigateTo(AppRoutes.emotionCapture);

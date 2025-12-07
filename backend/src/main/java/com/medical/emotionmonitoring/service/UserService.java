@@ -193,18 +193,9 @@ public class UserService {
         patient.setFullName(request.getFullName());
         patient.setEmail(request.getEmail());
         
-        if (request.getAge() != null) {
-            patient.setAge(request.getAge());
-        }
-        
-        if (request.getGender() != null) {
-            // Convert String to Gender enum if needed
-            try {
-                patient.setGender(com.medical.emotionmonitoring.entity.Gender.valueOf(request.getGender()));
-            } catch (IllegalArgumentException e) {
-                throw new ValidationException("Invalid gender value: " + request.getGender());
-            }
-        }
+        // Doctors are not allowed to modify patient age and gender
+        // These fields can only be set by the patient themselves during registration or profile update
+        // Ignoring age and gender from request to prevent unauthorized modifications
 
         User updatedPatient = userRepository.save(patient);
         return mapToUserResponse(updatedPatient);
